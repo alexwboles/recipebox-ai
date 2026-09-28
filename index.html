@@ -3,27 +3,41 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RecipeBox AI — recipe organizer</title>
+<title>RecipeBox AI — your recipes, organized</title>
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<header>
-  <h1>RecipeBox AI</h1>
-  <p>Your recipes, organized. Search, plan the week, and let the grocery list write itself. Free, private, in your browser.</p>
+<header class="masthead">
+  <div class="mast-inner">
+    <div class="brand">
+      <span class="mark" aria-hidden="true">R</span>
+      <div>
+        <h1>RecipeBox <span class="ai">AI</span></h1>
+        <p>Your recipes, organized — search, plan the week, and let the grocery list write itself.</p>
+      </div>
+    </div>
+    <div class="mast-note">100% local · no account · your recipes never leave this browser</div>
+  </div>
 </header>
-<nav class="tabs">
-  <button data-tab="recipes" class="active">Recipes</button>
-  <button data-tab="add">Add Recipe</button>
-  <button data-tab="week">Week Plan</button>
-  <button data-tab="grocery">Grocery List</button>
+
+<nav class="tabs" aria-label="Recipe box sections">
+  <div class="tabs-inner">
+    <button data-tab="recipes" class="active"><span class="t-ico" aria-hidden="true">▤</span>Recipes</button>
+    <button data-tab="add"><span class="t-ico" aria-hidden="true">＋</span>Add Recipe</button>
+    <button data-tab="week"><span class="t-ico" aria-hidden="true">◫</span>Week Plan</button>
+    <button data-tab="grocery"><span class="t-ico" aria-hidden="true">☰</span>Grocery List</button>
+  </div>
 </nav>
-<main>
+
+<main class="wrap">
   <section id="tab-recipes" class="tabpage"></section>
   <section id="tab-add" class="tabpage" style="display:none"></section>
   <section id="tab-week" class="tabpage" style="display:none"></section>
   <section id="tab-grocery" class="tabpage" style="display:none"></section>
 </main>
-<footer>RecipeBox AI · 100% local — your recipes never leave this browser. Comes with 20 starter recipes to get you going.</footer>
+
+<footer class="foot">RecipeBox AI · comes with 20 starter recipes · everything stays in this browser</footer>
+
 <script src="js/recipes.js"></script>
 <script src="js/logic.js"></script>
 <script src="js/app.js"></script>

@@ -53,11 +53,11 @@ function renderDetail(id) {
   html += '<h2 style="margin-top:12px;">' + esc(r.name) + '</h2>';
   html += '<div class="meta hint">' + r.timeMin + ' min · serves ' + r.servings + '</div>';
   html += '<div>' + (r.tags || []).map(t => '<span class="tag">' + esc(t) + '</span>').join("") + '</div>';
-  html += '<h3>Ingredients</h3><table class="ing">' + r.ingredients.map(i =>
-    '<tr><td>' + esc(i.name) + '</td><td style="text-align:right">' + esc(i.qty) + ' ' + esc(i.unit) + '</td></tr>').join("") + '</table>';
-  html += '<h3>Steps</h3><ol>' + r.steps.map(s => '<li>' + esc(s) + '</li>').join("") + '</ol>';
-  html += '<label>Add to week plan</label><select id="rb-day">' + RB.DAYS.map((d, i) => '<option value="' + i + '">' + d + '</option>').join("") + '</select>';
-  html += '<button class="btn" id="rb-addweek">Add to week</button></div>';
+  html += '<div class="detail-cols"><div><h3>Ingredients</h3><table class="ing">' + r.ingredients.map(i =>
+    '<tr><td>' + esc(i.name) + '</td><td>' + esc(i.qty) + ' ' + esc(i.unit) + '</td></tr>').join("") + '</table></div>';
+  html += '<div><h3>Steps</h3><ol>' + r.steps.map(s => '<li>' + esc(s) + '</li>').join("") + '</ol></div></div>';
+  html += '<div class="addrow"><div><label>Add to week plan</label><select id="rb-day">' + RB.DAYS.map((d, i) => '<option value="' + i + '">' + d + '</option>').join("") + '</select></div>';
+  html += '<button class="btn" id="rb-addweek">Add to week</button></div></div>';
   el("tab-recipes").innerHTML = html;
   el("rb-back").onclick = renderRecipes;
   el("rb-fav").onclick = () => { store.set("favs", RB.toggleFavorite(favs(), id)); renderDetail(id); };
@@ -123,7 +123,7 @@ function renderWeek() {
     html += '<div class="wday"><h4>' + d + '</h4>';
     if (r) {
       html += '<div class="rname">' + esc(r.name) + '</div><div class="hint">serves <input type="number" min="1" value="' + (servingsMap[i] || r.servings) +
-        '" data-serv="' + i + '" style="width:52px;padding:2px 4px;font-size:12px;"></div>' +
+        '" data-serv="' + i + '"></div>' +
         '<button class="btn ghost small" data-unassign="' + i + '">Remove</button>';
     } else {
       html += '<select data-assign="' + i + '"><option value="">— pick —</option>' +
@@ -161,18 +161,18 @@ function renderGrocery() {
   const list = RB.groceryList(store.get("plan", {}), allRecipes(), store.get("servings", {}));
   const checked = store.get("gchecked", {});
   let html = '<div class="card"><h2>Grocery list (' + list.length + ' items)</h2>';
-  if (!list.length) html += '<p class="hint">Plan some meals on the Week tab first.</p>';
+  if (!list.length) html += '<p class="hint">Plan some meals on the Week tab first — the list will build itself here.</p>';
   else {
-    html += '<table class="ing">';
+    html += '<div class="glist">';
     list.forEach((g, i) => {
       const key = (g.name + "|" + g.unit).toLowerCase();
-      html += '<tr><td><label style="margin:0;display:flex;gap:8px;align-items:center;cursor:pointer;">' +
-        '<input type="checkbox" data-g="' + i + '"' + (checked[key] ? " checked" : "") + '> ' +
-        '<span style="' + (checked[key] ? "text-decoration:line-through;color:#999" : "") + '">' + esc(g.name) + '</span></label>' +
-        '<div class="hint">for: ' + g.recipes.map(esc).join(", ") + '</div></td>' +
-        '<td style="text-align:right;white-space:nowrap">' + esc(g.qty) + ' ' + esc(g.unit) + '</td></tr>';
+      const done = !!checked[key];
+      html += '<label class="grow' + (done ? ' done' : '') + '">' +
+        '<input type="checkbox" data-g="' + i + '"' + (done ? " checked" : "") + '> ' +
+        '<span class="gname">' + esc(g.name) + '<span class="gfor">for: ' + g.recipes.map(esc).join(", ") + '</span></span>' +
+        '<span class="gqty">' + esc(g.qty) + ' ' + esc(g.unit) + '</span></label>';
     });
-    html += '</table><button class="btn ghost" id="g-print">Print list</button>';
+    html += '</div><button class="btn ghost" id="g-print">Print list</button>';
   }
   html += '</div>';
   el("tab-grocery").innerHTML = html;
