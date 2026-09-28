@@ -33,7 +33,7 @@ function renderRecipes() {
   html += '<div class="rgrid">';
   list.forEach(r => {
     html += '<div class="rcard" data-view="' + esc(r.id) + '"><h3>' + (favs().indexOf(r.id) !== -1 ? '<span class="fav">★</span> ' : "") + esc(r.name) + '</h3>' +
-      '<div class="meta">⏱ ' + r.timeMin + ' min · serves ' + r.servings + '</div>' +
+      '<div class="meta">' + r.timeMin + ' min · serves ' + r.servings + '</div>' +
       '<div>' + (r.tags || []).map(t => '<span class="tag">' + esc(t) + '</span>').join("") + '</div></div>';
   });
   html += '</div></div>';
@@ -51,7 +51,7 @@ function renderDetail(id) {
   let html = '<div class="card detail"><button class="btn ghost small" id="rb-back">← All recipes</button> ';
   html += '<button class="btn ghost small" id="rb-fav">' + (isFav ? "★ Unfavorite" : "☆ Favorite") + '</button>';
   html += '<h2 style="margin-top:12px;">' + esc(r.name) + '</h2>';
-  html += '<div class="meta hint">⏱ ' + r.timeMin + ' min · serves ' + r.servings + '</div>';
+  html += '<div class="meta hint">' + r.timeMin + ' min · serves ' + r.servings + '</div>';
   html += '<div>' + (r.tags || []).map(t => '<span class="tag">' + esc(t) + '</span>').join("") + '</div>';
   html += '<h3>Ingredients</h3><table class="ing">' + r.ingredients.map(i =>
     '<tr><td>' + esc(i.name) + '</td><td style="text-align:right">' + esc(i.qty) + ' ' + esc(i.unit) + '</td></tr>').join("") + '</table>';
@@ -64,7 +64,7 @@ function renderDetail(id) {
   el("rb-addweek").onclick = () => {
     const plan = RB.assignToDay(store.get("plan", {}), parseInt(el("rb-day").value, 10), id);
     store.set("plan", plan);
-    el("rb-addweek").textContent = "Added ✓";
+    el("rb-addweek").textContent = "Added";
   };
 }
 
@@ -106,7 +106,7 @@ function renderAdd() {
     const custom = store.get("custom", []);
     custom.push(res.recipe);
     store.set("custom", custom);
-    el("tab-add").innerHTML = '<div class="card"><h2>Saved ✓</h2><p class="hint">"' + esc(res.recipe.name) + '" is now in your box.</p></div>';
+    el("tab-add").innerHTML = '<div class="card"><h2>Saved</h2><p class="hint">"' + esc(res.recipe.name) + '" is now in your box.</p></div>';
   };
 }
 
