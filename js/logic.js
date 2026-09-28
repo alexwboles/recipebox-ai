@@ -1,0 +1,137 @@
+// RecipeBox AI — pure logic layer (browser + node compatible).
+(function () {
+"use strict";
+
+const R = (typeof require !== "undefined")
+  ? require("./recipes.js")
+  : window.RBRecipes;
+
+const store = {
+  get(key, fallback) {
+    try {
+      const raw = localStorage.getItem("recipebox:" + key);
+      return raw == null ? fallback : JSON.parse(raw);
+    } catch (e) { return fallback; }
+  },
+  set(key, value) {
+    try { localStorage.setItem("recipebox:" + key, JSON.stringify(value)); } catch (e) {}
+  }
+};
+
+const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+function allTags(recipes) {
+  const s = {};
+  (recipes || []).forEach(r => (r.tags || []).forEach(t => { s[t] = true; }));
+  return Object.keys(s).sort();
+}
+
+function searchRecipes(recipes, query, tag) {
+  const q = (query || "").trim().toLowerCase();
+  return (recipes || []).filter(r => {
+    if (tag && (r.tags || []).indexOf(tag) === -1) return false;
+    if (!q) return true;
+    const hay = (r.name + " " + (r.tags || []).join(" ") + " " +
+      (r.ingredients || []).map(i => i.name).join(" ")).toLowerCase();
+    return q.split(/\s+/).every(w => hay.indexOf(w) !== -1);
+  });
+}
+
+function validateRecipe(data) {
+  const errors = [];
+  if (!data.name || !data.name.trim()) errors.push("Name is required.");
+  if (!Array.isArray(data.ingredients) || !data.ingredients.length) errors.push("Add at least one ingredient.");
+  else data.ingredients.forEach((ing, i) => {
+    if (!ing.name || !ing.name.trim()) errors.push("Ingredient " + (i + 1) + " needs a name.");
+    if (!(ing.qty > 0)) errors.push("Ingredient '" + (ing.name || i + 1) + "' needs a quantity.");
+  });
+  if (!Array.isArray(data.steps) || !data.steps.filter(s => s && s.trim()).length) errors.push("Add at least one step.");
+  if (!(data.servings > 0)) errors.push("Servings must be at least 1.");
+  if (!(data.timeMin >= 0)) errors.push("Time must be 0 or more.");
+  return errors;
+}
+
+function addRecipe(recipes, data) {
+  const errors = validateRecipe(data);
+  if (errors.length) return { errors };
+  const id = "custom-" + Date.now().toString(36) + "-" + Math.floor(Math.random() * 1e4).toString(36);
+  const recipe = {
+    id,
+    name: data.name.trim(),
+    tags: (data.tags || []).map(t => t.trim().toLowerCase()).filter(Boolean),
+    timeMin: data.timeMin | 0,
+    servings: data.servings | 0,
+    ingredients: data.ingredients.map(i => ({ name: i.name.trim(), qty: Number(i.qty), unit: (i.unit || "").trim() })),
+    steps: data.steps.map(s => s.trim()).filter(Boolean),
+    custom: true
+  };
+  return { recipe: recipe, errors: [] };
+}
+
+function toggleFavorite(favs, id) {
+  favs = favs || [];
+  const i = favs.indexOf(id);
+  if (i === -1) favs.push(id); else favs.splice(i, 1);
+  return favs;
+}
+
+function assignToDay(plan, dayIdx, recipeId) {
+  plan = plan || {};
+  plan[dayIdx] = recipeId;
+  return plan;
+}
+
+function removeFromDay(plan, dayIdx) {
+  plan = plan || {};
+  delete plan[dayIdx];
+  return plan;
+}
+
+function scaleRecipe(recipe, servings) {
+  const factor = servings / recipe.servings;
+  return {
+    name: recipe.name,
+    servings,
+    ingredients: recipe.ingredients.map(i => ({
+      name: i.name,
+      qty: Math.round(i.qty * factor * 100) / 100,
+      unit: i.unit
+    }))
+  };
+}
+
+function groceryList(plan, recipes, servingsMap) {
+  // aggregate ingredients across the week's assigned recipes; merge by name|unit
+  const byId = {};
+  (recipes || []).forEach(r => { byId[r.id] = r; });
+  const merged = {};
+  Object.keys(plan || {}).forEach(dayIdx => {
+    const r = byId[plan[dayIdx]];
+    if (!r) return;
+    const servings = (servingsMap && servingsMap[dayIdx]) || r.servings;
+    scaleRecipe(r, servings).ingredients.forEach(i => {
+      const key = (i.name + "|" + i.unit).toLowerCase();
+      if (!merged[key]) merged[key] = { name: i.name, unit: i.unit, qty: 0, recipes: [] };
+      merged[key].qty = Math.round((merged[key].qty + i.qty) * 100) / 100;
+      if (merged[key].recipes.indexOf(r.name) === -1) merged[key].recipes.push(r.name);
+    });
+  });
+  return Object.keys(merged).sort().map(k => merged[k]);
+}
+
+function suggestRecipes(recipes, opts) {
+  opts = opts || {};
+  return (recipes || []).filter(r => {
+    if (opts.tag && (r.tags || []).indexOf(opts.tag) === -1) return false;
+    if (opts.maxTime != null && r.timeMin > opts.maxTime) return false;
+    if (opts.excludeId && r.id === opts.excludeId) return false;
+    return true;
+  });
+}
+
+const api = { store, DAYS, allTags, searchRecipes, validateRecipe, addRecipe,
+              toggleFavorite, assignToDay, removeFromDay, scaleRecipe, groceryList, suggestRecipes };
+
+if (typeof window !== "undefined") window.RecipeBox = api;
+if (typeof module !== "undefined" && module.exports) module.exports = api;
+})();
