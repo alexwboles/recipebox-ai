@@ -12,7 +12,7 @@
   --accent-soft: #fbe9e4;
   --gold: #c98a1e;
   --sage: #5f7a4e;
-  --radius: 14px;
+  --radius: 0;
   --shadow: 0 1px 2px rgba(62,44,28,.06), 0 10px 28px -14px rgba(62,44,28,.22);
   --serif: Georgia, "Times New Roman", serif;
   --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -39,7 +39,7 @@ button { font: inherit; }
 }
 .brand { display: flex; gap: .9rem; align-items: center; }
 .mark {
-  width: 46px; height: 46px; border-radius: 13px; flex-shrink: 0;
+  width: 46px; height: 46px; border-radius: 0; flex-shrink: 0;
   background: var(--accent); color: #fff;
   display: flex; align-items: center; justify-content: center;
   font-family: var(--serif); font-size: 1.6rem; font-weight: 700;
@@ -51,12 +51,12 @@ button { font: inherit; }
 }
 .brand .ai {
   font-family: var(--sans); font-size: .66rem; font-weight: 800; letter-spacing: .1em;
-  background: var(--accent); color: #fff; border-radius: 6px; padding: .15rem .45rem;
+  background: var(--accent); color: #fff; border-radius: 0; padding: .15rem .45rem;
 }
 .brand p { margin: .2rem 0 0; color: #cbbda6; font-size: .88rem; max-width: 46ch; }
 .mast-note {
   font-size: .76rem; color: #a5977f; border: 1px solid #4a3d2e;
-  padding: .45rem .8rem; border-radius: 999px; white-space: nowrap;
+  padding: .45rem .8rem; border-radius: 0; white-space: nowrap;
 }
 
 /* ---------- tabs ---------- */
@@ -90,14 +90,14 @@ button { font: inherit; }
 .hint { color: var(--muted); font-size: .88rem; }
 .err {
   color: var(--accent-deep); background: var(--accent-soft);
-  border: 1px solid #f0c9bf; border-radius: 10px; padding: .7rem 1rem; font-size: .88rem;
+  border: 1px solid #f0c9bf; border-radius: 0; padding: .7rem 1rem; font-size: .88rem;
 }
 .meta { color: var(--muted); font-size: .84rem; }
 label { display: block; font-size: .82rem; font-weight: 650; color: var(--ink-soft); margin: .9rem 0 .35rem; }
 
 input[type=text], input[type=number], select, textarea {
   font: inherit; color: var(--ink); font-weight: 400;
-  padding: .62rem .75rem; border: 1.5px solid var(--line); border-radius: 10px;
+  padding: .62rem .75rem; border: 1.5px solid var(--line); border-radius: 0;
   background: #fff; width: 100%;
   transition: border-color .15s ease, box-shadow .15s ease;
 }
@@ -107,7 +107,7 @@ input:focus, select:focus, textarea:focus {
 textarea { min-height: 120px; resize: vertical; }
 
 .btn {
-  background: var(--accent); color: #fff; border: 0; border-radius: 10px;
+  background: var(--accent); color: #fff; border: 0; border-radius: 0;
   padding: .68rem 1.3rem; font-weight: 700; cursor: pointer;
   box-shadow: 0 6px 14px -8px rgba(194,58,43,.7), inset 0 1px 0 rgba(255,255,255,.2);
   transition: transform .15s ease, background .15s ease, box-shadow .15s ease;
@@ -125,7 +125,7 @@ textarea { min-height: 120px; resize: vertical; }
 .toolbar select { flex: 1; min-width: 140px; }
 .rgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 1rem; }
 .rcard {
-  background: #fff; border: 1px solid var(--line); border-radius: 12px;
+  background: #fff; border: 1px solid var(--line); border-radius: 0;
   padding: 1.05rem 1.1rem; cursor: pointer; position: relative;
   transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
   border-top: 3px solid var(--accent);
@@ -138,7 +138,7 @@ textarea { min-height: 120px; resize: vertical; }
 .tag {
   display: inline-block; font-size: .72rem; font-weight: 700;
   background: #f3ecdd; color: var(--ink-soft);
-  border-radius: 999px; padding: .18rem .6rem; margin: 0 .3rem .3rem 0;
+  border-radius: 0; padding: .18rem .6rem; margin: 0 .3rem .3rem 0;
 }
 .fav { color: var(--gold); }
 
@@ -164,7 +164,7 @@ table.ing td:last-child { text-align: right; color: var(--ink-soft); font-varian
 /* ---------- week plan ---------- */
 .weekplan { display: grid; grid-template-columns: repeat(7, 1fr); gap: .7rem; margin-top: 1rem; }
 .wday {
-  background: #fff; border: 1px solid var(--line); border-radius: 12px;
+  background: #fff; border: 1px solid var(--line); border-radius: 0;
   padding: .85rem .8rem; min-height: 150px;
   display: flex; flex-direction: column; gap: .4rem;
   transition: box-shadow .18s ease;
@@ -179,7 +179,7 @@ table.ing td:last-child { text-align: right; color: var(--ink-soft); font-varian
 .wday input[type=number] { width: 56px; padding: .3rem .4rem; font-size: .85rem; display: inline-block; }
 
 /* ---------- grocery list ---------- */
-.glist { margin: 1rem 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #fff; }
+.glist { margin: 1rem 0; border: 1px solid var(--line); border-radius: 0; overflow: hidden; background: #fff; }
 .grow {
   display: flex; align-items: center; gap: .9rem; padding: .75rem 1rem;
   border-bottom: 1px solid #f1e9d7; cursor: pointer;
