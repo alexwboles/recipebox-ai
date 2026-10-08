@@ -88,4 +88,42 @@ flow("validation catches bad recipes", () => {
   assert.ok(ok.recipe.id.indexOf("custom-") === 0);
 });
 
+// Flow 7: custom recipe lifecycle — add, edit, delete
+flow("custom recipe edit + delete lifecycle", () => {
+  const made = RB.addRecipe(R, { name: "Weeknight Chili", tags: ["dinner"], timeMin: 30, servings: 4,
+    ingredients: [{ name: "beans", qty: 400, unit: "g" }], steps: ["Heat.", "Serve."] });
+  assert.strictEqual(made.errors.length, 0);
+  const upd = RB.updateRecipe([made.recipe], made.recipe.id, { name: "Weeknight Chili", tags: ["dinner", "spicy"], timeMin: 35, servings: 6,
+    ingredients: [{ name: "beans", qty: 600, unit: "g" }, { name: "chili powder", qty: 2, unit: "tsp" }], steps: ["Heat.", "Serve."] });
+  assert.strictEqual(upd.errors.length, 0, upd.errors.join(","));
+  assert.strictEqual(upd.recipe.servings, 6);
+  assert.ok(upd.recipe.tags.indexOf("spicy") !== -1);
+  const gone = RB.deleteCustomRecipe(upd.custom, made.recipe.id);
+  assert.strictEqual(gone.length, 0, "deleted recipe is gone");
+  assert.strictEqual(RB.deleteCustomRecipe(gone, "nope").length, 0, "deleting unknown id is a no-op");
+});
+
+// Flow 8: sort + detail-view scaler math
+flow("sort orders and scaler math", () => {
+  const byTime = RB.sortRecipes(R, "time");
+  assert.ok(byTime[0].timeMin <= byTime[byTime.length - 1].timeMin, "fastest first");
+  const byName = RB.sortRecipes(R, "name");
+  assert.ok(byName[0].name.localeCompare(byName[1].name) <= 0, "A-Z order");
+  // scaler: halving servings halves quantities (what the − / + stepper shows)
+  const r = R.find(x => x.id === "pancakes"); // serves 4
+  const half = RB.scaleRecipe(r, 2);
+  const flour = half.ingredients.find(i => i.name === "flour");
+  assert.strictEqual(flour.qty, 125, "flour halved 250g -> 125g, got " + flour.qty);
+});
+
+// Flow 9: grocery list copy text from a real week plan
+flow("grocery list copy text", () => {
+  let plan = RB.assignToDay(RB.assignToDay({}, 0, "tacos"), 1, "pesto-pasta");
+  const list = RB.groceryList(plan, R, {});
+  const text = RB.groceryListText(list);
+  assert.ok(text.length > 0, "copy text non-empty");
+  assert.strictEqual(text.split("\n").length, list.length, "one line per item");
+  assert.ok(list.every(g => text.indexOf(g.name) !== -1), "every item appears in copy text");
+});
+
 console.log(passed + " e2e flows passed.");

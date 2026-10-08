@@ -16,8 +16,10 @@ python3 -m http.server 8000
 ## Features
 
 - **20 starter recipes** — dinners, lunches, breakfasts, desserts across Italian, Mexican, Asian, and healthy tags
-- **Add your own** — ingredients with quantities/units, steps, time, servings, tags; validated on save
-- **Search + tag filters + favorites** — find anything by name, ingredient, or tag
+- **Add your own** — ingredients with quantities/units, steps, time, servings, tags; validated on save. Edit or delete your custom recipes any time
+- **Search + tag filters + favorites + sort** — find anything by name, ingredient, or tag; sort the bank by name, fastest cook time, or servings
+- **Serving scaler on every recipe** — tap − / + on any recipe to scale ingredient quantities for your headcount
+- **Copy the grocery list** — one tap copies a plain-text list for sharing or your notes app
 - **Week planner** — assign recipes to days, adjust servings per day
 - **Auto grocery list** — aggregates the week's ingredients, merges duplicates (2 recipes needing garlic → one line), scales to your servings, check items off as you shop, printable
 - **Smart suggestions** — filter the bank by max cook time ("dinner in 20 minutes")

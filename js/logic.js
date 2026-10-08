@@ -51,11 +51,8 @@ function validateRecipe(data) {
   return errors;
 }
 
-function addRecipe(recipes, data) {
-  const errors = validateRecipe(data);
-  if (errors.length) return { errors };
-  const id = "custom-" + Date.now().toString(36) + "-" + Math.floor(Math.random() * 1e4).toString(36);
-  const recipe = {
+function buildRecipe(id, data) {
+  return {
     id,
     name: data.name.trim(),
     tags: (data.tags || []).map(t => t.trim().toLowerCase()).filter(Boolean),
@@ -65,7 +62,46 @@ function addRecipe(recipes, data) {
     steps: data.steps.map(s => s.trim()).filter(Boolean),
     custom: true
   };
-  return { recipe: recipe, errors: [] };
+}
+
+function addRecipe(recipes, data) {
+  const errors = validateRecipe(data);
+  if (errors.length) return { errors };
+  const id = "custom-" + Date.now().toString(36) + "-" + Math.floor(Math.random() * 1e4).toString(36);
+  return { recipe: buildRecipe(id, data), errors: [] };
+}
+
+// Update a custom recipe in place (keeps id + custom flag). Pure: returns {custom, recipe, errors}.
+function updateRecipe(custom, id, data) {
+  const errors = validateRecipe(data);
+  if (errors.length) return { errors };
+  const list = (custom || []).slice();
+  const i = list.findIndex(r => r.id === id);
+  if (i === -1) return { errors: ["Recipe not found."] };
+  const recipe = buildRecipe(id, data);
+  list[i] = recipe;
+  return { custom: list, recipe, errors: [] };
+}
+
+function deleteCustomRecipe(custom, id) {
+  return (custom || []).filter(r => r.id !== id);
+}
+
+// Sort helpers for the recipe bank view. key: "name" | "time" | "servings".
+function sortRecipes(recipes, key) {
+  const arr = (recipes || []).slice();
+  if (key === "time") arr.sort((a, b) => (a.timeMin - b.timeMin) || a.name.localeCompare(b.name));
+  else if (key === "servings") arr.sort((a, b) => (a.servings - b.servings) || a.name.localeCompare(b.name));
+  else arr.sort((a, b) => a.name.localeCompare(b.name));
+  return arr;
+}
+
+// Plain-text version of the grocery list, for copy-to-clipboard / sharing.
+function groceryListText(list) {
+  return (list || []).map(g => {
+    const qty = (g.qty != null && g.qty !== "") ? String(g.qty) + (g.unit ? " " + g.unit : "") : "";
+    return "\u2022 " + g.name + (qty ? " — " + qty : "");
+  }).join("\n");
 }
 
 function toggleFavorite(favs, id) {
@@ -129,8 +165,9 @@ function suggestRecipes(recipes, opts) {
   });
 }
 
-const api = { store, DAYS, allTags, searchRecipes, validateRecipe, addRecipe,
-              toggleFavorite, assignToDay, removeFromDay, scaleRecipe, groceryList, suggestRecipes };
+const api = { store, DAYS, allTags, searchRecipes, validateRecipe, addRecipe, updateRecipe,
+              deleteCustomRecipe, sortRecipes,
+              toggleFavorite, assignToDay, removeFromDay, scaleRecipe, groceryList, groceryListText, suggestRecipes };
 
 if (typeof window !== "undefined") window.RecipeBox = api;
 if (typeof module !== "undefined" && module.exports) module.exports = api;

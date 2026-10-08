@@ -108,6 +108,63 @@ console.log('OK');
 " || fail "favorites"
 pass "favorite toggle adds and removes"
 
+# 13: sortRecipes orders by name / time / servings
+node -e "
+const RB = require('./js/logic.js');
+const R = require('./js/recipes.js');
+const byName = RB.sortRecipes(R.RECIPES, 'name');
+for (let i = 1; i < byName.length; i++) {
+  if (byName[i-1].name.localeCompare(byName[i].name) > 0) throw new Error('name sort broken at ' + i);
+}
+const byTime = RB.sortRecipes(R.RECIPES, 'time');
+for (let i = 1; i < byTime.length; i++) {
+  if (byTime[i-1].timeMin > byTime[i].timeMin) throw new Error('time sort broken at ' + i);
+}
+const byServ = RB.sortRecipes(R.RECIPES, 'servings');
+for (let i = 1; i < byServ.length; i++) {
+  if (byServ[i-1].servings > byServ[i].servings) throw new Error('servings sort broken at ' + i);
+}
+console.log('OK');
+" || fail "sortRecipes"
+pass "sortRecipes orders by name, time, servings"
+
+# 14: update + delete custom recipes
+node -e "
+const RB = require('./js/logic.js');
+const made = RB.addRecipe([], { name: 'Test Stew', tags: ['dinner'], timeMin: 40, servings: 4,
+  ingredients: [{ name: 'beef', qty: 500, unit: 'g' }], steps: ['Simmer.'] });
+if (made.errors.length) throw new Error('setup failed');
+const upd = RB.updateRecipe([made.recipe], made.recipe.id, { name: 'Test Stew v2', tags: ['dinner'], timeMin: 45, servings: 6,
+  ingredients: [{ name: 'beef', qty: 750, unit: 'g' }], steps: ['Simmer longer.'] });
+if (upd.errors.length) throw new Error('update errors: ' + upd.errors.join(','));
+if (upd.custom.length !== 1 || upd.recipe.name !== 'Test Stew v2' || upd.recipe.servings !== 6) throw new Error('update did not apply');
+if (upd.recipe.id !== made.recipe.id || !upd.recipe.custom) throw new Error('update must keep id + custom flag');
+const bad = RB.updateRecipe([made.recipe], made.recipe.id, { name: '', ingredients: [], steps: [], servings: 0, timeMin: 0 });
+if (!bad.errors.length) throw new Error('update should validate');
+const missing = RB.updateRecipe([], 'nope', { name: 'X', ingredients: [{name:'a',qty:1,unit:''}], steps: ['s'], servings: 1, timeMin: 1 });
+if (!missing.errors.length) throw new Error('update of unknown id should fail');
+const gone = RB.deleteCustomRecipe(upd.custom, made.recipe.id);
+if (gone.length !== 0) throw new Error('delete failed');
+console.log('OK');
+" || fail "update/delete custom recipes"
+pass "updateRecipe validates + preserves id; deleteCustomRecipe removes"
+
+# 15: groceryListText builds a shareable plain-text list
+node -e "
+const RB = require('./js/logic.js');
+const t = RB.groceryListText([{ name: 'garlic', qty: 6, unit: 'cloves' }, { name: 'salt', qty: 1, unit: '' }]);
+if (!/garlic — 6 cloves/.test(t)) throw new Error('bad line: ' + t);
+if (t.split('\n').length !== 2) throw new Error('expected 2 lines');
+console.log('OK');
+" || fail "groceryListText"
+pass "groceryListText renders plain-text list"
+
+# 16: new UI wiring present
+for id in rb-sort rb-edit rb-del rb-inc rb-dec g-copy groceryListText; do
+  grep -q "$id" js/app.js || fail "UI wiring missing: $id"
+done
+pass "edit/delete/sort/scaler/copy-list wiring present"
+
 # 11: assign/remove day
 node -e "
 const RB = require('./js/logic.js');
