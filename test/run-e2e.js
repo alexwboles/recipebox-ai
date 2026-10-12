@@ -126,4 +126,50 @@ flow("grocery list copy text", () => {
   assert.ok(list.every(g => text.indexOf(g.name) !== -1), "every item appears in copy text");
 });
 
+// Flow 10: ratings — set/clear, sort by rating, top-rated filter
+flow("recipe ratings + top-rated sort", () => {
+  let ratings = RB.setRating({}, "tacos", 5);
+  ratings = RB.setRating(ratings, "pancakes", 3);
+  ratings = RB.setRating(ratings, "quesadilla", 4);
+  assert.strictEqual(RB.getRating(ratings, "tacos"), 5, "get rating");
+  assert.strictEqual(RB.getRating(ratings, "unknown"), 0, "unrated -> 0");
+  // invalid stars clear instead of storing garbage
+  ratings = RB.setRating(ratings, "tacos", 9);
+  assert.strictEqual(RB.getRating(ratings, "tacos"), 0, "9 stars should clear");
+  ratings = RB.setRating(ratings, "tacos", 5);
+  // rating sort: 5, 4, 3 first; unrated after
+  const sorted = RB.sortRecipes(R, "rating", ratings);
+  const order = sorted.map(r => RB.getRating(ratings, r.id));
+  const firstRated = order.findIndex(s => s > 0);
+  const lastRated = order.map((s, i) => s > 0 ? i : -1).filter(i => i >= 0).pop();
+  assert.ok(firstRated === 0, "rated recipes lead");
+  assert.ok(order.slice(0, lastRated + 1).every((s, i, a) => i === 0 || a[i - 1] >= s), "rated desc");
+  assert.strictEqual(sorted[0].id, "tacos", "5-star first");
+  // topRated(>=4)
+  const top = RB.topRated(R, ratings);
+  assert.strictEqual(top.length, 2, "tacos + quesadilla rated >= 4, got " + top.length);
+  assert.ok(top.every(r => RB.getRating(ratings, r.id) >= 4), "all >= 4");
+  // backward compat: sort without ratings still works
+  assert.ok(RB.sortRecipes(R, "rating").length === R.length, "rating sort without ratings map");
+});
+
+// Flow 11: "have it" pantry exclusion shrinks the shoppable list
+flow("pantry have-it exclusion", () => {
+  let plan = RB.assignToDay(RB.assignToDay({}, 0, "tacos"), 1, "pesto-pasta");
+  const list = RB.groceryList(plan, R, {});
+  assert.ok(list.length > 3, "list should be substantial");
+  const key = (list[0].name + "|" + list[0].unit).toLowerCase();
+  const have = {};
+  have[key] = true;
+  const shop = RB.filterHave(list, have);
+  assert.strictEqual(shop.length, list.length - 1, "one item excluded");
+  assert.ok(!shop.some(g => (g.name + "|" + g.unit).toLowerCase() === key), "owned item gone");
+  assert.strictEqual(RB.haveCount(list, have), 1, "haveCount");
+  // copy text excludes owned items
+  const text = RB.groceryListText(shop);
+  assert.ok(text.indexOf(list[0].name) === -1, "owned item not in copy text");
+  // no have-set -> unchanged copy
+  assert.deepStrictEqual(RB.filterHave(list, null), list, "null have-set keeps all");
+});
+
 console.log(passed + " e2e flows passed.");

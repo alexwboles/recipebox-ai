@@ -212,3 +212,33 @@ table.ing td:last-child { text-align: right; color: var(--ink-soft); font-varian
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ---------- ratings ---------- */
+.stars{color:#c8931a;letter-spacing:.1em}
+.rate-widget{display:inline-flex;align-items:center;gap:2px;margin-left:12px;vertical-align:middle}
+.rate-widget .star{background:none;border:none;color:#d8d2c4;font-size:22px;cursor:pointer;padding:0 2px;line-height:1}
+.rate-widget .star.on{color:#c8931a}
+
+/* ---------- grocery "have it" ---------- */
+.grow{display:flex;align-items:center;gap:.6rem}
+.grow-main{flex:1;display:flex;align-items:center;gap:.6rem;cursor:pointer}
+.grow.owned .grow-main{opacity:.45;text-decoration:line-through}
+
+/* ---------- cook mode ---------- */
+.cook-mode{position:fixed;inset:0;background:#1d1a15;color:#f4efe4;z-index:100;overflow-y:auto}
+.cook-inner{max-width:640px;margin:0 auto;padding:2.5rem 1.5rem 4rem}
+.cook-inner h2{color:#f4efe4}
+.cook-inner .btn.ghost{color:#f4efe4;border-color:#5a5347}
+.cook-progress{color:#b9ae97;margin:.5rem 0}
+.cook-bar{height:8px;background:#3a342a;border-radius:0;margin-bottom:1.8rem}
+.cook-bar>div{height:100%;background:#c8931a;border-radius:0}
+.cook-step{font-size:1.5rem;line-height:1.55;margin:0 0 2rem;min-height:6rem}
+.cook-nav{display:flex;gap:.8rem;margin-bottom:2rem;flex-wrap:wrap;align-items:center}
+.cook-nav .btn[disabled]{opacity:.35;cursor:default}
+.cook-timer{border:1px solid #5a5347;border-radius:0;padding:1.2rem}
+.cook-timer h3{margin-top:0;color:#f4efe4}
+.cook-clock{font-size:3rem;font-weight:700;letter-spacing:.05em;margin:.4rem 0 1rem;color:#c8931a}
+@media print{
+  .cook-mode{display:none!important}
+  .grow.owned{display:none!important}
+}

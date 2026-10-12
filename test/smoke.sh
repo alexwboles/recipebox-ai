@@ -187,4 +187,37 @@ console.log('OK: ' + s.length + ' quick recipes');
 " || fail "suggest maxTime"
 pass "suggestRecipes respects maxTime"
 
+# 13: ratings — set/clear/get, topRated, rating sort
+node -e "
+const RB = require('./js/logic.js');
+let r = RB.setRating({}, 'x', 4);
+if (RB.getRating(r, 'x') !== 4) throw new Error('set/get');
+r = RB.setRating(r, 'x', 0);
+if (RB.getRating(r, 'x') !== 0) throw new Error('clear');
+if (typeof RB.setRating !== 'function' || typeof RB.topRated !== 'function') throw new Error('missing exports');
+console.log('OK');
+" || fail "ratings helpers"
+pass "ratings set/clear/topRated work"
+
+# 14: filterHave / haveCount
+node -e "
+const RB = require('./js/logic.js');
+const list = [{name:'flour',unit:'g',qty:100},{name:'sugar',unit:'g',qty:50}];
+const have = {'flour|g': true};
+const shop = RB.filterHave(list, have);
+if (shop.length !== 1 || shop[0].name !== 'sugar') throw new Error('filter');
+if (RB.haveCount(list, have) !== 1) throw new Error('count');
+console.log('OK');
+" || fail "have-it filter"
+pass "filterHave/haveCount work"
+
+# 15: cook mode + rating UI wiring present
+grep -q 'id="cookMode"' index.html || { echo "missing cookMode div"; exit 1; }
+grep -q 'openCookMode' js/app.js || { echo "missing openCookMode"; exit 1; }
+grep -q 'rb-cook' js/app.js || { echo "missing cook button"; exit 1; }
+grep -q 'data-star' js/app.js || { echo "missing star widget"; exit 1; }
+grep -q 'data-have' js/app.js || { echo "missing have-it buttons"; exit 1; }
+grep -q 'cook-mode' css/style.css || { echo "missing cook-mode css"; exit 1; }
+pass "cook mode + rating + have-it UI wired"
+
 echo "All smoke tests passed."

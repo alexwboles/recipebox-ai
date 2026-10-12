@@ -20,25 +20,32 @@ function switchTab(name) {
 }
 
 // ---------- recipes tab ----------
-let q = "", tagFilter = "", favOnly = false, sortKey = "name";
+let q = "", tagFilter = "", favOnly = false, topOnly = false, sortKey = "name";
+function starStr(n) { return "★★★★★".slice(0, n) + "☆☆☆☆☆".slice(0, 5 - n); }
 function renderRecipes() {
   const recipes = allRecipes();
   const tags = RB.allTags(recipes);
+  const ratings = store.get("ratings", {});
   const list = RB.sortRecipes(
-    RB.searchRecipes(recipes, q, tagFilter).filter(r => !favOnly || favs().indexOf(r.id) !== -1),
-    sortKey);
+    RB.searchRecipes(recipes, q, tagFilter)
+      .filter(r => !favOnly || favs().indexOf(r.id) !== -1)
+      .filter(r => !topOnly || RB.getRating(ratings, r.id) >= 4),
+    sortKey, ratings);
   let html = '<div class="card"><h2>Recipes (' + list.length + ')</h2><div class="toolbar">';
   html += '<input type="text" id="rb-q" placeholder="Search recipes, ingredients…" value="' + esc(q) + '">';
   html += '<select id="rb-tag"><option value="">All tags</option>' + tags.map(t =>
     '<option value="' + esc(t) + '"' + (tagFilter === t ? " selected" : "") + '>' + esc(t) + '</option>').join("") + '</select>';
   html += '<select id="rb-sort" aria-label="Sort recipes">' +
-    [["name", "Sort: Name"], ["time", "Sort: Fastest"], ["servings", "Sort: Servings"]].map(o =>
+    [["name", "Sort: Name"], ["time", "Sort: Fastest"], ["servings", "Sort: Servings"], ["rating", "Sort: Top rated"]].map(o =>
       '<option value="' + o[0] + '"' + (sortKey === o[0] ? " selected" : "") + '>' + o[1] + '</option>').join("") + '</select>';
-  html += '<button class="btn ghost small" id="rb-favonly" style="align-self:center">' + (favOnly ? "★ Favorites" : "☆ Favorites") + '</button></div>';
+  html += '<button class="btn ghost small" id="rb-favonly" style="align-self:center">' + (favOnly ? "★ Favorites" : "☆ Favorites") + '</button>';
+  html += '<button class="btn ghost small" id="rb-toponly" style="align-self:center">' + (topOnly ? "★ Top rated" : "☆ Top rated") + '</button></div>';
   html += '<div class="rgrid">';
   list.forEach(r => {
+    const st = RB.getRating(ratings, r.id);
     html += '<div class="rcard" data-view="' + esc(r.id) + '"><h3>' + (favs().indexOf(r.id) !== -1 ? '<span class="fav">★</span> ' : "") + esc(r.name) + '</h3>' +
-      '<div class="meta">' + r.timeMin + ' min · serves ' + r.servings + '</div>' +
+      '<div class="meta">' + r.timeMin + ' min · serves ' + r.servings +
+      (st ? ' · <span class="stars" title="Your rating: ' + st + '/5">' + starStr(st) + '</span>' : '') + '</div>' +
       '<div>' + (r.tags || []).map(t => '<span class="tag">' + esc(t) + '</span>').join("") + '</div></div>';
   });
   html += '</div></div>';
@@ -47,6 +54,7 @@ function renderRecipes() {
   el("rb-tag").onchange = ev => { tagFilter = ev.target.value; renderRecipes(); };
   el("rb-sort").onchange = ev => { sortKey = ev.target.value; renderRecipes(); };
   el("rb-favonly").onclick = () => { favOnly = !favOnly; renderRecipes(); };
+  el("rb-toponly").onclick = () => { topOnly = !topOnly; renderRecipes(); };
   document.querySelectorAll("[data-view]").forEach(c => { c.onclick = () => renderDetail(c.getAttribute("data-view")); });
 }
 
@@ -57,10 +65,17 @@ function renderDetail(id) {
   let viewServ = r.servings;
   let html = '<div class="card detail"><button class="btn ghost small" id="rb-back">← All recipes</button> ';
   html += '<button class="btn ghost small" id="rb-fav">' + (isFav ? "★ Unfavorite" : "☆ Favorite") + '</button>';
+  html += '<button class="btn ghost small" id="rb-cook">Cook mode</button>';
   if (r.custom) {
     html += ' <button class="btn ghost small" id="rb-edit">Edit</button>';
     html += ' <button class="btn ghost small" id="rb-del">Delete</button>';
   }
+  const myStars = RB.getRating(store.get("ratings", {}), id);
+  html += '<span class="rate-widget" role="group" aria-label="Rate this recipe">' +
+    [1, 2, 3, 4, 5].map(s =>
+      '<button class="star' + (s <= myStars ? " on" : "") + '" data-star="' + s + '" aria-label="' + s + ' star' + (s > 1 ? "s" : "") + '">★</button>'
+    ).join("") +
+    (myStars ? '<button class="btn ghost small" id="rb-unrate">Clear</button>' : '') + '</span>';
   html += '<h2 style="margin-top:12px;">' + esc(r.name) + '</h2>';
   html += '<div class="meta hint">' + r.timeMin + ' min · serves ' +
     '<button class="btn ghost small stepper" id="rb-dec" aria-label="Fewer servings">−</button> ' +
@@ -74,6 +89,12 @@ function renderDetail(id) {
   el("tab-recipes").innerHTML = html;
   el("rb-back").onclick = renderRecipes;
   el("rb-fav").onclick = () => { store.set("favs", RB.toggleFavorite(favs(), id)); renderDetail(id); };
+  el("rb-cook").onclick = () => openCookMode(r);
+  document.querySelectorAll(".rate-widget [data-star]").forEach(b => {
+    b.onclick = () => { store.set("ratings", RB.setRating(store.get("ratings", {}), id, parseInt(b.dataset.star, 10))); renderDetail(id); };
+  });
+  const unrate = el("rb-unrate");
+  if (unrate) unrate.onclick = () => { store.set("ratings", RB.setRating(store.get("ratings", {}), id, 0)); renderDetail(id); };
   const drawIngs = () => {
     const scaled = RB.scaleRecipe(r, viewServ);
     el("rb-ings").innerHTML = scaled.ingredients.map(i =>
@@ -206,21 +227,126 @@ function renderWeek() {
   });
 }
 
+// ---------- cook mode ----------
+// Full-screen step-by-step cooking view with a built-in countdown timer.
+let cook = null; // {recipe, idx, timer:{total,left,running,iv}}
+function beep() {
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    const ctx = new Ctx();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.value = 880;
+    g.gain.setValueAtTime(0.0001, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.5, ctx.currentTime + 0.05);
+    o.start();
+    o.stop(ctx.currentTime + 0.7);
+    setTimeout(() => ctx.close(), 900);
+  } catch (e) { /* audio unavailable */ }
+}
+function fmtClock(sec) {
+  sec = Math.max(0, Math.round(sec));
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
+}
+function openCookMode(recipe) {
+  cook = { recipe, idx: 0, timer: { total: 0, left: 0, running: false, iv: null } };
+  el("cookMode").style.display = "";
+  renderCook();
+}
+function closeCookMode() {
+  if (cook && cook.timer.iv) clearInterval(cook.timer.iv);
+  cook = null;
+  el("cookMode").style.display = "none";
+}
+function renderCook() {
+  if (!cook) return;
+  const r = cook.recipe, n = r.steps.length, i = cook.idx;
+  const t = cook.timer;
+  el("cookMode").innerHTML =
+    '<div class="cook-inner"><button class="btn ghost" id="cookExit">✕ Exit cook mode</button>' +
+    '<h2>' + esc(r.name) + '</h2>' +
+    '<p class="cook-progress">Step ' + (i + 1) + ' of ' + n + '</p>' +
+    '<div class="cook-bar"><div style="width:' + Math.round((i + 1) / n * 100) + '%"></div></div>' +
+    '<p class="cook-step">' + esc(r.steps[i]) + '</p>' +
+    '<div class="cook-nav">' +
+    '<button class="btn ghost" id="cookPrev"' + (i === 0 ? " disabled" : "") + '>← Prev</button>' +
+    (i === n - 1
+      ? '<button class="btn" id="cookDone">Done — enjoy!</button>'
+      : '<button class="btn" id="cookNext">Next →</button>') +
+    '</div>' +
+    '<div class="cook-timer"><h3>Timer</h3>' +
+    '<div class="cook-clock" id="cookClock">' + fmtClock(t.left) + '</div>' +
+    '<div class="cook-nav">' +
+    '<input type="number" id="cookMins" min="1" max="240" value="10" style="width:70px" aria-label="Minutes"> ' +
+    '<button class="btn ghost small" id="cookSet">Set</button> ' +
+    '<button class="btn ghost small" id="cookToggle">' + (t.running ? "Pause" : "Start") + '</button> ' +
+    '<button class="btn ghost small" id="cookReset">Reset</button>' +
+    '</div></div></div>';
+  el("cookExit").onclick = closeCookMode;
+  const prev = el("cookPrev"), next = el("cookNext"), done = el("cookDone");
+  if (prev) prev.onclick = () => { if (cook.idx > 0) { cook.idx--; renderCook(); } };
+  if (next) next.onclick = () => { if (cook.idx < n - 1) { cook.idx++; renderCook(); } };
+  if (done) done.onclick = closeCookMode;
+  el("cookSet").onclick = () => {
+    const mins = Math.max(1, Math.min(240, parseInt(el("cookMins").value, 10) || 0));
+    stopTimerTick();
+    cook.timer.total = cook.timer.left = mins * 60;
+    cook.timer.running = false;
+    renderCook();
+  };
+  el("cookToggle").onclick = () => {
+    if (cook.timer.running) { stopTimerTick(); cook.timer.running = false; renderCook(); return; }
+    if (cook.timer.left <= 0) return;
+    cook.timer.running = true;
+    cook.timer.iv = setInterval(() => {
+      cook.timer.left--;
+      const c = el("cookClock");
+      if (c) c.textContent = fmtClock(cook.timer.left);
+      if (cook.timer.left <= 0) {
+        stopTimerTick();
+        cook.timer.running = false;
+        beep();
+        renderCook();
+      }
+    }, 1000);
+    renderCook();
+  };
+  el("cookReset").onclick = () => {
+    stopTimerTick();
+    cook.timer.left = cook.timer.total;
+    cook.timer.running = false;
+    renderCook();
+  };
+}
+function stopTimerTick() { if (cook && cook.timer.iv) { clearInterval(cook.timer.iv); cook.timer.iv = null; } }
+document.addEventListener("keydown", (e) => {
+  if (!cook || el("cookMode").style.display === "none") return;
+  if (e.key === "ArrowRight" && cook.idx < cook.recipe.steps.length - 1) { cook.idx++; renderCook(); }
+  else if (e.key === "ArrowLeft" && cook.idx > 0) { cook.idx--; renderCook(); }
+  else if (e.key === "Escape") closeCookMode();
+});
+
 // ---------- grocery tab ----------
 function renderGrocery() {
   const list = RB.groceryList(store.get("plan", {}), allRecipes(), store.get("servings", {}));
   const checked = store.get("gchecked", {});
-  let html = '<div class="card"><h2>Grocery list (' + list.length + ' items)</h2>';
+  const have = store.get("ghave", {});
+  const haveN = RB.haveCount(list, have);
+  const shopList = RB.filterHave(list, have);
+  let html = '<div class="card"><h2>Grocery list (' + shopList.length + ' to buy' + (haveN ? ', ' + haveN + ' already owned' : '') + ')</h2>';
   if (!list.length) html += '<p class="hint">Plan some meals on the Week tab first — the list will build itself here.</p>';
   else {
-    html += '<div class="glist">';
+    html += '<p class="hint">Tick off items as you shop. Mark staples you already own with "Have it" — they drop out of the list you print or copy.</p><div class="glist">';
     list.forEach((g, i) => {
       const key = (g.name + "|" + g.unit).toLowerCase();
       const done = !!checked[key];
-      html += '<label class="grow' + (done ? ' done' : '') + '">' +
-        '<input type="checkbox" data-g="' + i + '"' + (done ? " checked" : "") + '> ' +
+      const owned = !!have[key];
+      html += '<div class="grow' + (done ? ' done' : '') + (owned ? ' owned' : '') + '">' +
+        '<label class="grow-main"><input type="checkbox" data-g="' + i + '"' + (done ? " checked" : "") + (owned ? " disabled" : "") + '> ' +
         '<span class="gname">' + esc(g.name) + '<span class="gfor">for: ' + g.recipes.map(esc).join(", ") + '</span></span>' +
-        '<span class="gqty">' + esc(g.qty) + ' ' + esc(g.unit) + '</span></label>';
+        '<span class="gqty">' + esc(g.qty) + ' ' + esc(g.unit) + '</span></label>' +
+        '<button class="btn ghost small" data-have="' + i + '">' + (owned ? "Need it" : "Have it") + '</button></div>';
     });
     html += '</div><button class="btn ghost" id="g-print">Print list</button> <button class="btn ghost" id="g-copy">Copy list</button>';
   }
@@ -236,11 +362,21 @@ function renderGrocery() {
       renderGrocery();
     };
   });
+  document.querySelectorAll("[data-have]").forEach(b => {
+    b.onclick = () => {
+      const g = list[parseInt(b.getAttribute("data-have"), 10)];
+      const h = store.get("ghave", {});
+      const key = (g.name + "|" + g.unit).toLowerCase();
+      if (h[key]) delete h[key]; else h[key] = true;
+      store.set("ghave", h);
+      renderGrocery();
+    };
+  });
   const pr = el("g-print");
   if (pr) pr.onclick = () => window.print();
   const cp = el("g-copy");
   if (cp) cp.onclick = () => {
-    const text = RB.groceryListText(list);
+    const text = RB.groceryListText(RB.filterHave(list, store.get("ghave", {})));
     const done = () => { cp.textContent = "Copied!"; setTimeout(() => { cp.textContent = "Copy list"; }, 1200); };
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, done);
     else done();

@@ -87,13 +87,45 @@ function deleteCustomRecipe(custom, id) {
   return (custom || []).filter(r => r.id !== id);
 }
 
-// Sort helpers for the recipe bank view. key: "name" | "time" | "servings".
-function sortRecipes(recipes, key) {
+// Sort helpers for the recipe bank view. key: "name" | "time" | "servings" | "rating".
+// "rating" sorts by user stars (desc), unrated last, then name. ratings is {id: stars}.
+function sortRecipes(recipes, key, ratings) {
   const arr = (recipes || []).slice();
+  const stars = id => (ratings && ratings[id]) || 0;
   if (key === "time") arr.sort((a, b) => (a.timeMin - b.timeMin) || a.name.localeCompare(b.name));
   else if (key === "servings") arr.sort((a, b) => (a.servings - b.servings) || a.name.localeCompare(b.name));
+  else if (key === "rating") arr.sort((a, b) => (stars(b.id) - stars(a.id)) || a.name.localeCompare(b.name));
   else arr.sort((a, b) => a.name.localeCompare(b.name));
   return arr;
+}
+
+// ---------- ratings ----------
+// ratings is a plain {recipeId: 1..5} map. stars=0 clears the rating.
+function setRating(ratings, id, stars) {
+  const r = Object.assign({}, ratings || {});
+  const s = Math.round(Number(stars) || 0);
+  if (s >= 1 && s <= 5) r[id] = s;
+  else delete r[id];
+  return r;
+}
+function getRating(ratings, id) {
+  return (ratings && ratings[id]) || 0;
+}
+// Recipes rated minStars or higher (default 4).
+function topRated(recipes, ratings, minStars) {
+  const min = minStars == null ? 4 : minStars;
+  return (recipes || []).filter(r => getRating(ratings, r.id) >= min);
+}
+
+// ---------- pantry / "have it" ----------
+// haveSet: {itemKey: true} for ingredients the cook already owns.
+// Excludes them from the shoppable list (copy/print/export).
+function filterHave(list, haveSet) {
+  if (!haveSet) return (list || []).slice();
+  return (list || []).filter(g => !haveSet[(g.name + "|" + g.unit).toLowerCase()]);
+}
+function haveCount(list, haveSet) {
+  return (list || []).length - filterHave(list, haveSet).length;
 }
 
 // Plain-text version of the grocery list, for copy-to-clipboard / sharing.
@@ -167,7 +199,8 @@ function suggestRecipes(recipes, opts) {
 
 const api = { store, DAYS, allTags, searchRecipes, validateRecipe, addRecipe, updateRecipe,
               deleteCustomRecipe, sortRecipes,
-              toggleFavorite, assignToDay, removeFromDay, scaleRecipe, groceryList, groceryListText, suggestRecipes };
+              toggleFavorite, assignToDay, removeFromDay, scaleRecipe, groceryList, groceryListText, suggestRecipes,
+              setRating, getRating, topRated, filterHave, haveCount };
 
 if (typeof window !== "undefined") window.RecipeBox = api;
 if (typeof module !== "undefined" && module.exports) module.exports = api;
