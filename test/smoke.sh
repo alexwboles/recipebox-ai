@@ -282,4 +282,12 @@ grep -q 'pantry-card' css/style.css || fail "missing pantry css"
 grep -q 'aisle-head' css/style.css || fail "missing aisle css"
 pass "pantry match + aisle grouping + week templates UI wired"
 
+# 16: recipe detail upgrades — ingredient check-off + print
+grep -q 'rb-print' js/app.js || { echo "missing print recipe button"; exit 1; }
+grep -q 'printRecipe' js/app.js || { echo "missing printRecipe"; exit 1; }
+grep -q 'data-ing' js/app.js || { echo "missing ingredient check-off"; exit 1; }
+grep -q 'recipePrint' css/style.css || { echo "missing recipe print css"; exit 1; }
+grep -q 'ing-hint' js/app.js || { echo "missing check-off hint"; exit 1; }
+pass "detail: ingredient check-off + print recipe"
+
 echo "All smoke tests passed."

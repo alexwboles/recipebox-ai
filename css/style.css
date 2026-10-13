@@ -256,3 +256,25 @@ table.ing td:last-child { text-align: right; color: var(--ink-soft); font-varian
 .aisle-head { font-size: .95rem; text-transform: uppercase; letter-spacing: .04em; color: var(--accent, #b3402e); margin: .9rem 0 .2rem; }
 .weektpl { margin-top: 1.25rem; }
 .weektpl .danger { color: var(--accent, #b3402e); }
+
+/* ---------- third sweep: editorial cards, ingredient check-off, recipe print ---------- */
+.rcard h3{font-size:1.18rem;line-height:1.32}
+.rcard .meta{font-size:.85rem;color:var(--muted);margin-bottom:.6rem}
+.rcard .meta .stars{color:var(--gold)}
+table.ing{width:100%;border-collapse:collapse}
+table.ing td{padding:.5rem .6rem;border-bottom:1px solid var(--line)}
+table.ing tr[data-ing]{cursor:pointer}
+table.ing tr[data-ing]:hover td{background:#faf5ea}
+table.ing tr[data-ing].checked td{color:var(--muted);text-decoration:line-through}
+.ing-hint{font-size:.8rem;color:var(--muted);margin:-.2rem 0 .6rem}
+#recipePrint{display:none}
+@media print{
+  body.printing-recipe>*:not(#recipePrint){display:none!important}
+  body.printing-recipe #recipePrint{display:block!important;font-family:var(--serif);color:#000}
+  #recipePrint h1{font-size:28px;margin:0 0 4px}
+  #recipePrint .rp-meta{font-family:var(--sans);color:#555;margin:0 0 16px}
+  #recipePrint .rp-cols{display:grid;grid-template-columns:1fr 1.6fr;gap:24px}
+  #recipePrint h2{font-size:16px;border-bottom:2px solid #000;padding-bottom:4px}
+  #recipePrint li{margin-bottom:6px;font-size:14px}
+  #recipePrint .rp-foot{font-family:var(--sans);font-size:11px;color:#888;margin-top:24px}
+}

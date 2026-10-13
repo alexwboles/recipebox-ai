@@ -101,6 +101,7 @@ function renderDetail(id) {
   let html = '<div class="card detail"><button class="btn ghost small" id="rb-back">← All recipes</button> ';
   html += '<button class="btn ghost small" id="rb-fav">' + (isFav ? "★ Unfavorite" : "☆ Favorite") + '</button>';
   html += '<button class="btn ghost small" id="rb-cook">Cook mode</button>';
+  html += ' <button class="btn ghost small" id="rb-print">Print recipe</button>';
   if (r.custom) {
     html += ' <button class="btn ghost small" id="rb-edit">Edit</button>';
     html += ' <button class="btn ghost small" id="rb-del">Delete</button>';
@@ -117,7 +118,7 @@ function renderDetail(id) {
     '<strong id="rb-serv">' + viewServ + '</strong> ' +
     '<button class="btn ghost small stepper" id="rb-inc" aria-label="More servings">+</button></div>';
   html += '<div>' + (r.tags || []).map(t => '<span class="tag">' + esc(t) + '</span>').join("") + '</div>';
-  html += '<div class="detail-cols"><div><h3>Ingredients</h3><table class="ing" id="rb-ings"></table></div>';
+  html += '<div class="detail-cols"><div><h3>Ingredients</h3><p class="ing-hint">Tap an ingredient to check it off as you cook.</p><table class="ing" id="rb-ings"></table></div>';
   html += '<div><h3>Steps</h3><ol>' + r.steps.map(s => '<li>' + esc(s) + '</li>').join("") + '</ol></div></div>';
   html += '<div class="addrow"><div><label>Add to week plan</label><select id="rb-day">' + RB.DAYS.map((d, i) => '<option value="' + i + '">' + d + '</option>').join("") + '</select></div>';
   html += '<button class="btn" id="rb-addweek">Add to week</button></div></div>';
@@ -125,18 +126,27 @@ function renderDetail(id) {
   el("rb-back").onclick = renderRecipes;
   el("rb-fav").onclick = () => { store.set("favs", RB.toggleFavorite(favs(), id)); renderDetail(id); };
   el("rb-cook").onclick = () => openCookMode(r);
+  el("rb-print").onclick = () => printRecipe(r, viewServ);
   document.querySelectorAll(".rate-widget [data-star]").forEach(b => {
     b.onclick = () => { store.set("ratings", RB.setRating(store.get("ratings", {}), id, parseInt(b.dataset.star, 10))); renderDetail(id); };
   });
   const unrate = el("rb-unrate");
   if (unrate) unrate.onclick = () => { store.set("ratings", RB.setRating(store.get("ratings", {}), id, 0)); renderDetail(id); };
+  const checkedIngs = new Set();
   const drawIngs = () => {
     const scaled = RB.scaleRecipe(r, viewServ);
-    el("rb-ings").innerHTML = scaled.ingredients.map(i =>
-      '<tr><td>' + esc(i.name) + '</td><td>' + esc(String(i.qty)) + ' ' + esc(i.unit) + '</td></tr>').join("");
+    el("rb-ings").innerHTML = scaled.ingredients.map((i, idx) =>
+      '<tr data-ing="' + idx + '"' + (checkedIngs.has(idx) ? ' class="checked"' : "") + '><td>' + esc(i.name) + '</td><td>' + esc(String(i.qty)) + ' ' + esc(i.unit) + '</td></tr>').join("");
     el("rb-serv").textContent = viewServ;
   };
   drawIngs();
+  el("rb-ings").addEventListener("click", ev => {
+    const tr = ev.target.closest("tr[data-ing]");
+    if (!tr) return;
+    const idx = parseInt(tr.getAttribute("data-ing"), 10);
+    if (checkedIngs.has(idx)) checkedIngs.delete(idx); else checkedIngs.add(idx);
+    tr.classList.toggle("checked");
+  });
   el("rb-dec").onclick = () => { if (viewServ > 1) { viewServ--; drawIngs(); } };
   el("rb-inc").onclick = () => { viewServ++; drawIngs(); };
   const ed = el("rb-edit"), del = el("rb-del");
@@ -318,6 +328,21 @@ function fmtClock(sec) {
   const m = Math.floor(sec / 60), s = sec % 60;
   return (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
 }
+function printRecipe(r, viewServ) {
+  const scaled = RB.scaleRecipe(r, viewServ);
+  let sheet = el("recipePrint");
+  if (!sheet) { sheet = document.createElement("div"); sheet.id = "recipePrint"; document.body.appendChild(sheet); }
+  sheet.innerHTML = '<h1>' + esc(r.name) + '</h1>' +
+    '<p class="rp-meta">' + r.timeMin + ' min · serves ' + viewServ + '</p>' +
+    '<div class="rp-cols"><div><h2>Ingredients</h2><ul>' +
+    scaled.ingredients.map(i => '<li>' + esc(i.name) + ' — ' + esc(String(i.qty)) + ' ' + esc(i.unit) + '</li>').join("") +
+    '</ul></div><div><h2>Steps</h2><ol>' + r.steps.map(x => '<li>' + esc(x) + '</li>').join("") + '</ol></div></div>' +
+    '<p class="rp-foot">Printed from RecipeBox AI</p>';
+  document.body.classList.add("printing-recipe");
+  window.print();
+  setTimeout(() => document.body.classList.remove("printing-recipe"), 500);
+}
+
 function openCookMode(recipe) {
   cook = { recipe, idx: 0, timer: { total: 0, left: 0, running: false, iv: null } };
   el("cookMode").style.display = "";

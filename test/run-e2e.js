@@ -216,4 +216,14 @@ flow("week template round trip", () => {
   assert.strictEqual(weeks.length, 0, "template deleted");
 });
 
+flow("serving scaler math (detail + print path)", () => {
+  const R = require("../js/logic.js");
+  const recipe = { servings: 4, ingredients: [{ name: "flour", qty: 200, unit: "g" }, { name: "eggs", qty: 2, unit: "" }] };
+  const s2 = R.scaleRecipe(recipe, 2);
+  assert.strictEqual(s2.ingredients[0].qty, 100, "flour halved");
+  assert.strictEqual(s2.ingredients[1].qty, 1, "eggs halved");
+  const s6 = R.scaleRecipe(recipe, 6);
+  assert.strictEqual(s6.ingredients[0].qty, 300, "flour 1.5x");
+});
+
 console.log(passed + " e2e flows passed.");
