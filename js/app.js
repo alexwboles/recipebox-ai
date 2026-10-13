@@ -19,6 +19,39 @@ function switchTab(name) {
   if (name === "grocery") renderGrocery();
 }
 
+// ---------- cook-with-what's-here ----------
+function renderPantryMatch() {
+  const pantry = store.get("pantry", "");
+  return '<div class="card pantry-card"><h2>Cook with what\'s here</h2>' +
+    '<p class="hint">Type ingredients you already have (comma-separated) — we rank every recipe by how much of it you own.</p>' +
+    '<div class="pantry-row"><input type="text" id="rb-pantry" placeholder="e.g. chicken, rice, garlic, eggs" value="' + esc(pantry) + '" aria-label="Ingredients you have">' +
+    '<button class="btn ghost small" id="rb-pantry-go">Find recipes</button></div>' +
+    '<div id="rb-pantry-out"></div></div>';
+}
+function wirePantry() {
+  const go = el("rb-pantry-go");
+  if (!go) return;
+  const run = () => {
+    const raw = el("rb-pantry").value;
+    store.set("pantry", raw);
+    const owned = raw.split(",").map(s => s.trim()).filter(Boolean);
+    const matches = RB.matchByPantry(allRecipes(), owned);
+    const out = el("rb-pantry-out");
+    if (!owned.length) { out.innerHTML = '<p class="hint">Enter some ingredients first.</p>'; return; }
+    out.innerHTML = matches.length
+      ? '<p class="hint">' + matches.length + ' recipe(s) use something you have:</p>' + matches.slice(0, 12).map(m =>
+          '<div class="pmatch"><div><strong>' + esc(m.recipe.name) + '</strong>' +
+          '<div class="hint">' + (m.missing ? m.missing + ' to buy: ' + m.missingNames.slice(0, 4).map(esc).join(", ") + (m.missingNames.length > 4 ? "…" : "") : "you have everything") + '</div></div>' +
+          '<div class="pcov"><div class="bar"><div style="width:' + m.coverage + '%"></div></div><span>' + m.coverage + '%</span></div>' +
+          '<button class="btn ghost small" data-pview="' + esc(m.recipe.id) + '">View</button></div>').join("")
+      : '<p class="hint">Nothing matches — try different ingredients.</p>';
+    out.querySelectorAll("[data-pview]").forEach(b => { b.onclick = () => renderDetail(b.getAttribute("data-pview")); });
+  };
+  go.onclick = run;
+  el("rb-pantry").addEventListener("keydown", ev => { if (ev.key === "Enter") run(); });
+  if (el("rb-pantry").value.trim()) run();
+}
+
 // ---------- recipes tab ----------
 let q = "", tagFilter = "", favOnly = false, topOnly = false, sortKey = "name";
 function starStr(n) { return "★★★★★".slice(0, n) + "☆☆☆☆☆".slice(0, 5 - n); }
@@ -49,12 +82,14 @@ function renderRecipes() {
       '<div>' + (r.tags || []).map(t => '<span class="tag">' + esc(t) + '</span>').join("") + '</div></div>';
   });
   html += '</div></div>';
+  html += renderPantryMatch();
   el("tab-recipes").innerHTML = html;
   el("rb-q").oninput = ev => { q = ev.target.value; renderRecipes(); const nq = el("rb-q"); nq.focus(); nq.setSelectionRange(nq.value.length, nq.value.length); };
   el("rb-tag").onchange = ev => { tagFilter = ev.target.value; renderRecipes(); };
   el("rb-sort").onchange = ev => { sortKey = ev.target.value; renderRecipes(); };
   el("rb-favonly").onclick = () => { favOnly = !favOnly; renderRecipes(); };
   el("rb-toponly").onclick = () => { topOnly = !topOnly; renderRecipes(); };
+  wirePantry();
   document.querySelectorAll("[data-view]").forEach(c => { c.onclick = () => renderDetail(c.getAttribute("data-view")); });
 }
 
@@ -203,6 +238,18 @@ function renderWeek() {
     html += '</div>';
   });
   html += '</div></div>';
+  // week-plan templates
+  const weeks = store.get("weeks", []);
+  html += '<div class="card weektpl"><h2>Saved weeks</h2>' +
+    '<p class="hint">Save this week as a template and reload it any time — handy for rotating menus.</p>' +
+    '<div class="pantry-row"><input type="text" id="rb-weekname" placeholder="Template name, e.g. Easy dinners" maxlength="60" aria-label="Template name">' +
+    '<button class="btn ghost small" id="rb-weeksave">Save this week</button></div>' +
+    (weeks.length ? weeks.slice().reverse().map(w =>
+      '<div class="pmatch"><div><strong>' + esc(w.name) + '</strong>' +
+      '<div class="hint">' + Object.keys(w.plan || {}).length + ' day(s) planned · saved ' + esc(String(w.savedAt || "").slice(0, 10)) + '</div></div>' +
+      '<div><button class="btn ghost small" data-wload="' + esc(w.id) + '">Load</button> ' +
+      '<button class="btn ghost small danger" data-wdel="' + esc(w.id) + '">Delete</button></div></div>').join("")
+      : '<p class="hint">No saved weeks yet.</p>') + '</div>';
   el("tab-week").innerHTML = html;
   document.querySelectorAll("[data-assign]").forEach(s => {
     s.onchange = () => {
@@ -223,6 +270,28 @@ function renderWeek() {
       const m = store.get("servings", {});
       m[inp.getAttribute("data-serv")] = parseFloat(inp.value) || 1;
       store.set("servings", m);
+    };
+  });
+  const wsave = el("rb-weeksave");
+  if (wsave) wsave.onclick = () => {
+    const name = el("rb-weekname").value;
+    const res = RB.addWeekTemplate(store.get("weeks", []), name, store.get("plan", {}), store.get("servings", {}));
+    store.set("weeks", res.weeks);
+    renderWeek();
+  };
+  document.querySelectorAll("[data-wload]").forEach(b => {
+    b.onclick = () => {
+      const w = store.get("weeks", []).filter(x => x.id === b.getAttribute("data-wload"))[0];
+      if (!w) return;
+      store.set("plan", Object.assign({}, w.plan));
+      store.set("servings", Object.assign({}, w.servings));
+      renderWeek();
+    };
+  });
+  document.querySelectorAll("[data-wdel]").forEach(b => {
+    b.onclick = () => {
+      store.set("weeks", RB.removeWeekTemplate(store.get("weeks", []), b.getAttribute("data-wdel")));
+      renderWeek();
     };
   });
 }
@@ -328,6 +397,17 @@ document.addEventListener("keydown", (e) => {
 });
 
 // ---------- grocery tab ----------
+let groupAisles = false;
+function groceryRow(g, i, checked, have) {
+  const key = (g.name + "|" + g.unit).toLowerCase();
+  const done = !!checked[key];
+  const owned = !!have[key];
+  return '<div class="grow' + (done ? ' done' : '') + (owned ? ' owned' : '') + '">' +
+    '<label class="grow-main"><input type="checkbox" data-g="' + i + '"' + (done ? " checked" : "") + (owned ? " disabled" : "") + '> ' +
+    '<span class="gname">' + esc(g.name) + '<span class="gfor">for: ' + g.recipes.map(esc).join(", ") + '</span></span>' +
+    '<span class="gqty">' + esc(g.qty) + ' ' + esc(g.unit) + '</span></label>' +
+    '<button class="btn ghost small" data-have="' + i + '">' + (owned ? "Need it" : "Have it") + '</button></div>';
+}
 function renderGrocery() {
   const list = RB.groceryList(store.get("plan", {}), allRecipes(), store.get("servings", {}));
   const checked = store.get("gchecked", {});
@@ -337,21 +417,22 @@ function renderGrocery() {
   let html = '<div class="card"><h2>Grocery list (' + shopList.length + ' to buy' + (haveN ? ', ' + haveN + ' already owned' : '') + ')</h2>';
   if (!list.length) html += '<p class="hint">Plan some meals on the Week tab first — the list will build itself here.</p>';
   else {
-    html += '<p class="hint">Tick off items as you shop. Mark staples you already own with "Have it" — they drop out of the list you print or copy.</p><div class="glist">';
-    list.forEach((g, i) => {
-      const key = (g.name + "|" + g.unit).toLowerCase();
-      const done = !!checked[key];
-      const owned = !!have[key];
-      html += '<div class="grow' + (done ? ' done' : '') + (owned ? ' owned' : '') + '">' +
-        '<label class="grow-main"><input type="checkbox" data-g="' + i + '"' + (done ? " checked" : "") + (owned ? " disabled" : "") + '> ' +
-        '<span class="gname">' + esc(g.name) + '<span class="gfor">for: ' + g.recipes.map(esc).join(", ") + '</span></span>' +
-        '<span class="gqty">' + esc(g.qty) + ' ' + esc(g.unit) + '</span></label>' +
-        '<button class="btn ghost small" data-have="' + i + '">' + (owned ? "Need it" : "Have it") + '</button></div>';
-    });
+    html += '<p class="hint">Tick off items as you shop. Mark staples you already own with "Have it" — they drop out of the list you print or copy.</p>' +
+      '<label class="aisle-toggle"><input type="checkbox" id="g-aisles"' + (groupAisles ? " checked" : "") + '> Group by store aisle</label><div class="glist">';
+    if (groupAisles) {
+      RB.groupByAisle(list).forEach(grp => {
+        html += '<h3 class="aisle-head">' + esc(grp.aisle) + '</h3>';
+        grp.items.forEach(g => { html += groceryRow(g, list.indexOf(g), checked, have); });
+      });
+    } else {
+      list.forEach((g, i) => { html += groceryRow(g, i, checked, have); });
+    }
     html += '</div><button class="btn ghost" id="g-print">Print list</button> <button class="btn ghost" id="g-copy">Copy list</button>';
   }
   html += '</div>';
   el("tab-grocery").innerHTML = html;
+  const at = el("g-aisles");
+  if (at) at.onchange = () => { groupAisles = at.checked; renderGrocery(); };
   document.querySelectorAll("[data-g]").forEach(cb => {
     cb.onchange = () => {
       const g = list[parseInt(cb.getAttribute("data-g"), 10)];
@@ -376,7 +457,8 @@ function renderGrocery() {
   if (pr) pr.onclick = () => window.print();
   const cp = el("g-copy");
   if (cp) cp.onclick = () => {
-    const text = RB.groceryListText(RB.filterHave(list, store.get("ghave", {})));
+    const shop = RB.filterHave(list, store.get("ghave", {}));
+    const text = groupAisles ? RB.groceryListTextGrouped(RB.groupByAisle(shop)) : RB.groceryListText(shop);
     const done = () => { cp.textContent = "Copied!"; setTimeout(() => { cp.textContent = "Copy list"; }, 1200); };
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, done);
     else done();

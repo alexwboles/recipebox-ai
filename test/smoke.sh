@@ -220,4 +220,66 @@ grep -q 'data-have' js/app.js || { echo "missing have-it buttons"; exit 1; }
 grep -q 'cook-mode' css/style.css || { echo "missing cook-mode css"; exit 1; }
 pass "cook mode + rating + have-it UI wired"
 
+# 16: matchByPantry ranks by coverage
+node -e "
+const RB = require('./js/logic.js');
+const R = require('./js/recipes.js').RECIPES;
+const tacos = R.find(r => r.id === 'tacos');
+const res = RB.matchByPantry(R, ['ground beef', 'taco shells', 'lettuce']);
+const row = res.find(x => x.recipe.id === 'tacos');
+if (!row) throw new Error('tacos not matched');
+if (row.have !== 3 || row.missing !== 3) throw new Error('have/missing: ' + JSON.stringify(row));
+if (row.coverage !== 50) throw new Error('coverage: ' + row.coverage);
+if (res[0].recipe.id !== 'tacos') throw new Error('tacos should rank first at 50%');
+const none = RB.matchByPantry(R, ['unobtainium']);
+if (none.length) throw new Error('bogus ingredient should match nothing');
+const empty = RB.matchByPantry(R, []);
+if (empty.length) throw new Error('empty pantry should match nothing');
+console.log('OK');
+" || fail "matchByPantry"
+pass "matchByPantry ranks by coverage"
+
+# 17: aisleFor + groupByAisle
+node -e "
+const RB = require('./js/logic.js');
+if (RB.aisleFor('cherry tomatoes') !== 'Produce') throw new Error('tomatoes');
+if (RB.aisleFor('shredded cheese') !== 'Dairy & Eggs') throw new Error('cheese');
+if (RB.aisleFor('ground beef') !== 'Meat & Seafood') throw new Error('beef');
+if (RB.aisleFor('taco shells') !== 'Pantry') throw new Error('shells');
+if (RB.aisleFor('olive oil') !== 'Pantry') throw new Error('oil');
+if (RB.aisleFor('mystery dust') !== 'Other') throw new Error('other');
+const groups = RB.groupByAisle([{name:'milk',unit:'L',qty:1},{name:'chicken breast',unit:'g',qty:500},{name:'milk',unit:'L',qty:1}]);
+const dairy = groups.find(g => g.aisle === 'Dairy & Eggs');
+if (!dairy || dairy.items.length !== 2) throw new Error('dairy group');
+if (groups.findIndex(g => g.aisle === 'Dairy & Eggs') > groups.findIndex(g => g.aisle === 'Meat & Seafood')) throw new Error('aisle order');
+const txt = RB.groceryListTextGrouped(groups);
+if (!/DAIRY/.test(txt) || !/chicken breast/.test(txt)) throw new Error('grouped text');
+console.log('OK');
+" || fail "aisle grouping"
+pass "aisleFor/groupByAisle/grouped text work"
+
+# 18: week templates add/remove
+node -e "
+const RB = require('./js/logic.js');
+let w = [];
+let r = RB.addWeekTemplate(w, 'Easy', {0: 'tacos', 3: 'pesto-pasta'}, {0: 4});
+if (r.weeks.length !== 1 || !r.week.id) throw new Error('add');
+if (r.week.plan[0] !== 'tacos' || r.week.servings[0] !== 4) throw new Error('payload');
+if (w.length !== 0) throw new Error('pure: input unchanged');
+const blank = RB.addWeekTemplate([], '   ', {}, {});
+if (blank.week.name !== 'Saved week') throw new Error('default name');
+w = RB.removeWeekTemplate(r.weeks, r.week.id);
+if (w.length !== 0) throw new Error('remove');
+console.log('OK');
+" || fail "week templates"
+pass "addWeekTemplate/removeWeekTemplate work"
+
+# 19: second-sweep UI wired
+grep -q 'rb-pantry' js/app.js || fail "missing pantry UI"
+grep -q 'g-aisles' js/app.js || fail "missing aisle toggle"
+grep -q 'rb-weeksave' js/app.js || fail "missing week save"
+grep -q 'pantry-card' css/style.css || fail "missing pantry css"
+grep -q 'aisle-head' css/style.css || fail "missing aisle css"
+pass "pantry match + aisle grouping + week templates UI wired"
+
 echo "All smoke tests passed."

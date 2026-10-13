@@ -172,4 +172,48 @@ flow("pantry have-it exclusion", () => {
   assert.deepStrictEqual(RB.filterHave(list, null), list, "null have-set keeps all");
 });
 
+
+// Flow 12: cook-with-what's-here ranks recipes by owned-ingredient coverage
+flow("cook with what's here", () => {
+  const matches = RB.matchByPantry(R, ["ground beef", "taco shells", "lettuce", "tomatoes"]);
+  const tacos = matches.find(m => m.recipe.id === "tacos");
+  assert.ok(tacos, "tacos matched");
+  assert.strictEqual(tacos.coverage, 67, "4 of 6 ingredients = 67%, got " + tacos.coverage);
+  assert.ok(tacos.missingNames.includes("taco seasoning"), "missing seasoning listed");
+  // best match first
+  assert.strictEqual(matches[0].recipe.id, "tacos", "tacos ranks first");
+});
+
+// Flow 13: grocery list groups into store aisles in stable order
+flow("grocery list aisle grouping", () => {
+  const plan = RB.assignToDay(RB.assignToDay({}, 0, "tacos"), 1, "pesto-pasta");
+  const list = RB.groceryList(plan, R, {});
+  const groups = RB.groupByAisle(list);
+  assert.ok(groups.length >= 3, "several aisles, got " + groups.length);
+  const names = groups.map(g => g.aisle);
+  assert.ok(names.includes("Produce") && names.includes("Meat & Seafood"), "produce + meat present");
+  assert.strictEqual(names.indexOf("Produce") < names.indexOf("Meat & Seafood"), true, "produce before meat");
+  const flat = groups.reduce((a, g) => a + g.items.length, 0);
+  assert.strictEqual(flat, list.length, "every item grouped exactly once");
+  const txt = RB.groceryListTextGrouped(groups);
+  assert.ok(/PRODUCE/.test(txt) && /MEAT & SEAFOOD/.test(txt), "grouped copy text has aisle headers");
+});
+
+// Flow 14: week template save -> reload -> delete round trip
+flow("week template round trip", () => {
+  let weeks = [];
+  const plan = RB.assignToDay(RB.assignToDay({}, 0, "tacos"), 5, "pesto-pasta");
+  const r = RB.addWeekTemplate(weeks, "Rotation A", plan, { 0: 4 });
+  weeks = r.weeks;
+  assert.strictEqual(weeks.length, 1, "one template saved");
+  // reload: plan + servings restore exactly
+  const loaded = weeks[0];
+  assert.deepStrictEqual(loaded.plan, { 0: "tacos", 5: "pesto-pasta" }, "plan restored");
+  assert.deepStrictEqual(loaded.servings, { 0: 4 }, "servings restored");
+  const list = RB.groceryList(loaded.plan, R, loaded.servings);
+  assert.ok(list.length > 0, "reloaded plan builds a grocery list");
+  weeks = RB.removeWeekTemplate(weeks, loaded.id);
+  assert.strictEqual(weeks.length, 0, "template deleted");
+});
+
 console.log(passed + " e2e flows passed.");

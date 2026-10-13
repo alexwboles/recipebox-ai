@@ -197,10 +197,86 @@ function suggestRecipes(recipes, opts) {
   });
 }
 
+// ---------- second sweep: cook-with-what's-here, aisles, week templates ----------
+function normIngName(s) { return String(s || "").trim().toLowerCase(); }
+
+// "Cook with what's here": rank recipes by the share of their ingredients
+// you already own (exact name match, case-insensitive).
+function matchByPantry(recipes, ownedNames) {
+  const owned = {};
+  (ownedNames || []).forEach(n => { const k = normIngName(n); if (k) owned[k] = true; });
+  return (recipes || []).map(r => {
+    const ings = (r.ingredients || []);
+    const missing = ings.filter(i => !owned[normIngName(i.name)]);
+    const have = ings.length - missing.length;
+    return {
+      recipe: r,
+      have: have,
+      missing: missing.length,
+      coverage: ings.length ? Math.round((have / ings.length) * 100) : 0,
+      missingNames: missing.map(i => i.name)
+    };
+  }).filter(x => x.have > 0)
+    .sort((a, b) => b.coverage - a.coverage || b.have - a.have || a.recipe.name.localeCompare(b.recipe.name));
+}
+
+// Aisle grouping for the grocery list: keyword map -> stable aisle order.
+const AISLE_ORDER = ["Produce", "Dairy & Eggs", "Meat & Seafood", "Bakery", "Pantry", "Frozen", "Other"];
+const AISLE_KEYWORDS = [
+  ["Produce", ["lettuce", "tomato", "onion", "garlic", "potato", "carrot", "celery", "pepper", "mushroom", "spinach", "broccoli", "cucumber", "avocado", "lemon", "lime", "apple", "banana", "herb", "parsley", "cilantro", "basil", "ginger", "zucchini", "squash", "cabbage", "kale", "green bean", "pea", "corn", "asparagus", "eggplant"]],
+  ["Dairy & Eggs", ["milk", "cheese", "butter", "cream", "yogurt", "egg", "mozzarella", "parmesan", "cheddar", "sour cream"]],
+  ["Meat & Seafood", ["chicken", "beef", "pork", "turkey", "bacon", "sausage", "ham", "fish", "salmon", "tuna", "shrimp", "steak", "ground"]],
+  ["Bakery", ["bread", "tortilla", "bun", "roll", "baguette", "pita"]],
+  ["Pantry", ["flour", "sugar", "rice", "pasta", "taco", "oil", "vinegar", "salt", "spice", "cumin", "paprika", "oregano", "sauce", "stock", "broth", "bean", "lentil", "oat", "honey", "syrup", "peanut butter", "ketchup", "mustard", "mayo", "soy"]],
+  ["Frozen", ["frozen", "ice cream"]]
+];
+function aisleFor(name) {
+  const n = normIngName(name);
+  for (const [aisle, words] of AISLE_KEYWORDS) {
+    if (words.some(w => n.indexOf(w) !== -1)) return aisle;
+  }
+  return "Other";
+}
+function groupByAisle(list) {
+  const groups = {};
+  (list || []).forEach(g => {
+    const a = aisleFor(g.name);
+    (groups[a] = groups[a] || []).push(g);
+  });
+  return AISLE_ORDER.map(a => ({ aisle: a, items: groups[a] || [] })).filter(g => g.items.length);
+}
+function groceryListTextGrouped(groups) {
+  const lines = [];
+  (groups || []).forEach(g => {
+    lines.push(g.aisle.toUpperCase());
+    g.items.forEach(i => lines.push("  - " + i.name + " — " + i.qty + " " + (i.unit || "").trim()));
+  });
+  return lines.join("\n");
+}
+
+// Week-plan templates: save the current week, reload it later. Pure (weeks array in/out).
+function addWeekTemplate(weeks, name, plan, servings) {
+  const list = (weeks || []).slice();
+  const week = {
+    id: "w" + Date.now().toString(36) + "-" + Math.floor(Math.random() * 1e4).toString(36),
+    name: String(name || "").trim().slice(0, 60) || "Saved week",
+    plan: Object.assign({}, plan || {}),
+    servings: Object.assign({}, servings || {}),
+    savedAt: new Date().toISOString()
+  };
+  list.push(week);
+  return { weeks: list, week };
+}
+function removeWeekTemplate(weeks, id) {
+  return (weeks || []).filter(w => w.id !== id);
+}
+
 const api = { store, DAYS, allTags, searchRecipes, validateRecipe, addRecipe, updateRecipe,
               deleteCustomRecipe, sortRecipes,
               toggleFavorite, assignToDay, removeFromDay, scaleRecipe, groceryList, groceryListText, suggestRecipes,
-              setRating, getRating, topRated, filterHave, haveCount };
+              setRating, getRating, topRated, filterHave, haveCount,
+              matchByPantry, AISLE_ORDER, aisleFor, groupByAisle, groceryListTextGrouped,
+              addWeekTemplate, removeWeekTemplate };
 
 if (typeof window !== "undefined") window.RecipeBox = api;
 if (typeof module !== "undefined" && module.exports) module.exports = api;

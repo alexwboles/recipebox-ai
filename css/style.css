@@ -242,3 +242,17 @@ table.ing td:last-child { text-align: right; color: var(--ink-soft); font-varian
   .cook-mode{display:none!important}
   .grow.owned{display:none!important}
 }
+
+/* ---------- second sweep: pantry match, aisles, week templates ---------- */
+.pantry-card { margin-top: 1.25rem; }
+.pantry-row { display: flex; gap: .6rem; margin: .6rem 0; }
+.pantry-row input[type="text"] { flex: 1; }
+.pmatch { display: flex; justify-content: space-between; align-items: center; gap: .8rem; padding: .55rem 0; border-bottom: 1px solid var(--line, #e6ddcf); }
+.pcov { display: flex; align-items: center; gap: .5rem; min-width: 9rem; }
+.pcov .bar { flex: 1; height: .55rem; background: var(--wash, #f3eee3); }
+.pcov .bar > div { height: 100%; background: var(--accent, #b3402e); }
+.pcov span { font-size: .85rem; font-weight: 600; min-width: 2.4rem; text-align: right; }
+.aisle-toggle { display: inline-flex; align-items: center; gap: .45rem; font-size: .9rem; margin: .2rem 0 .6rem; cursor: pointer; }
+.aisle-head { font-size: .95rem; text-transform: uppercase; letter-spacing: .04em; color: var(--accent, #b3402e); margin: .9rem 0 .2rem; }
+.weektpl { margin-top: 1.25rem; }
+.weektpl .danger { color: var(--accent, #b3402e); }
